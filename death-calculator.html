@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Death Calculator</title>
+
+<style>
+body {
+  margin:0;
+  background:black;
+  font-family:monospace;
+  color:#00eaff;
+  text-align:center;
+  overflow:hidden;
+}
+
+/* MATRIX */
+canvas {
+  position:fixed;
+  top:0;
+  left:0;
+  z-index:-1;
+}
+
+/* TITLE SCREEN */
+#titleScreen {
+  position:fixed;
+  width:100%;
+  height:100%;
+  background:black;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  z-index:10;
+}
+
+#logo {
+  max-width:90%;
+  max-height:70vh;
+  object-fit:contain;
+  margin-bottom:30px;
+}
+
+.enter-btn {
+  padding:14px 50px;
+  font-size:20px;
+  background:red;
+  border:none;
+  color:white;
+  cursor:pointer;
+  box-shadow:0 0 20px red;
+  transition:0.3s;
+}
+
+.enter-btn:hover {
+  background:#ff2a2a;
+  box-shadow:0 0 35px red;
+}
+
+/* MAIN APP */
+.container {
+  margin-top:30px;
+  display:none;
+}
+
+input {
+  margin:5px;
+  padding:8px;
+  background:black;
+  border:1px solid #00eaff;
+  color:#00eaff;
+}
+
+.preview-wrap {
+  display:flex;
+  justify-content:center;
+  margin-top:15px;
+  position:relative;
+}
+
+img.preview {
+  max-width:300px;
+  border:2px solid #00eaff;
+}
+
+.scan-line {
+  position:absolute;
+  width:300px;
+  height:6px;
+  background:linear-gradient(to bottom, rgba(0,255,0,0), lime, rgba(0,255,0,0));
+  box-shadow:0 0 20px lime;
+  animation:scan 2s linear infinite;
+  display:none;
+}
+
+@keyframes scan {
+  0% { top:0; }
+  100% { top:100%; }
+}
+
+.progress {
+  width:300px;height:10px;border:1px solid #00eaff;
+  margin:10px auto;display:none;
+}
+
+.bar {
+  height:100%;
+  width:0;
+  background:#00eaff;
+}
+
+.result {
+  margin-top:20px;
+  max-width:400px;
+  margin:auto;
+  text-align:center;
+  color:white;
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="matrix"></canvas>
+
+<!-- TITLE SCREEN -->
+<div id="titleScreen">
+  <img id="logo" src="Logo/death.png" alt="Death Calculator Logo">
+  <button class="enter-btn" onclick="enterApp()">ENTER</button>
+</div>
+
+<!-- MAIN APP -->
+<div class="container" id="app">
+
+<h1>DEATH CALCULATOR</h1>
+<div>System Operator: Jay Mendoza</div>
+
+<input type="file" id="upload"><br>
+<input type="text" id="nameInput" placeholder="Name"><br>
+<input type="number" id="birthYear" placeholder="Enter Birth Year"><br>
+
+<div class="preview-wrap">
+<img id="preview" class="preview" style="display:none;">
+<div class="scan-line" id="scanLine"></div>
+</div>
+
+<div class="progress" id="progress">
+<div class="bar" id="bar"></div>
+</div>
+
+<button onclick="analyze()">ANALYZE</button>
+
+<div class="result" id="result"></div>
+</div>
+
+<script>
+// ENTER
+function enterApp(){
+  document.getElementById("titleScreen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+}
+
+// MATRIX
+const canvas = document.getElementById("matrix");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const letters = "01";
+const fontSize = 14;
+const columns = canvas.width / fontSize;
+const drops = Array(Math.floor(columns)).fill(1);
+
+function drawMatrix() {
+  ctx.fillStyle = "rgba(0,0,0,0.08)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  ctx.fillStyle = "#00ff00";
+  ctx.font = fontSize + "px monospace";
+
+  for (let i = 0; i < drops.length; i++) {
+    const text = letters[Math.floor(Math.random()*letters.length)];
+    ctx.fillText(text, i*fontSize, drops[i]*fontSize);
+
+    if (drops[i]*fontSize > canvas.height && Math.random() > 0.975)
+      drops[i] = 0;
+
+    drops[i]++;
+  }
+}
+setInterval(drawMatrix, 33);
+
+// DOM
+const result = document.getElementById("result");
+const progress = document.getElementById("progress");
+const bar = document.getElementById("bar");
+
+// DATA
+let imageHash = 0;
+let detectedYearSpan = null;
+let imageData = null;
+
+const upload = document.getElementById("upload");
+const preview = document.getElementById("preview");
+const scanLine = document.getElementById("scanLine");
+
+upload.addEventListener("change", function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    imageData = ev.target.result;
+    preview.src = imageData;
+    preview.style.display = "block";
+
+    imageHash = 0;
+    for(let i=0;i<imageData.length;i++){
+      imageHash = (imageHash + imageData.charCodeAt(i)*i) % 1000000;
+    }
+  };
+  reader.readAsDataURL(file);
+});
+
+function getAge(year){
+  return new Date().getFullYear() - year;
+}
+
+// FAKE OCR
+function fakeOCR(){
+  if(imageHash % 2 === 0){
+    return {
+      birth: 1950 + (imageHash % 40),
+      death: 2000 + (imageHash % 30)
+    };
+  }
+  return null;
+}
+
+// CAUSES
+function getPossibleCauses(age){
+  const young = ["neurological condition","infectious illness","unexpected medical event"];
+  const adult = ["cardiovascular disease","metabolic disorder","respiratory illness"];
+  const senior = ["organ failure","degenerative condition","natural causes"];
+
+  let list = age <= 18 ? young : age <= 50 ? adult : senior;
+
+  return [
+    list[imageHash % list.length],
+    list[(imageHash + 1) % list.length],
+    list[(imageHash + 2) % list.length]
+  ];
+}
+
+// ANALYZE
+function analyze(){
+  const name = document.getElementById("nameInput").value;
+  const birthYear = document.getElementById("birthYear").value;
+
+  if(!imageData || !name){
+    result.innerHTML = "Complete required inputs.";
+    return;
+  }
+
+  scanLine.style.display = "block";
+  progress.style.display = "block";
+
+  let start = Date.now();
+
+  let interval = setInterval(()=>{
+    let percent = Math.min(100, (Date.now() - start) / 4000 * 100);
+    bar.style.width = percent + "%";
+
+    if(percent >= 100){
+      clearInterval(interval);
+      scanLine.style.display = "none";
+
+      let voice = new SpeechSynthesisUtterance("Analysis complete.");
+      voice.rate = 0.9;
+      voice.pitch = 0.7;
+      speechSynthesis.speak(voice);
+
+      detectedYearSpan = fakeOCR();
+      showResult(name, birthYear);
+    }
+  },50);
+}
+
+// RESULT
+function showResult(name, birthYear){
+  let age;
+  let isDead = false;
+
+  if (detectedYearSpan) {
+    age = detectedYearSpan.death - detectedYearSpan.birth;
+    isDead = true;
+  } else {
+    if (!birthYear) {
+      result.innerHTML = "Please, put an information before we give a correct calculation!";
+      return;
+    }
+    age = getAge(parseInt(birthYear));
+  }
+
+  let lifeExpectancy = 70 + (imageHash % 20);
+  const yearsLeft = Math.max(0, lifeExpectancy - age);
+
+  const causes = getPossibleCauses(age);
+
+  result.innerHTML = `
+  <b>SYSTEM VERDICT</b><br><br>
+  SUBJECT: ${name}<br>
+  AGE: ${age}<br><br>
+  STATUS: ${isDead ? "ARCHIVED (DECEASED)" : "ACTIVE"}<br><br>
+  ${detectedYearSpan ? `
+    YEAR RANGE DETECTED: ${detectedYearSpan.birth} - ${detectedYearSpan.death}<br><br>
+  ` : `
+    LIFE EXPECTANCY: ${lifeExpectancy}<br>
+    YEARS LEFT: ${yearsLeft}<br><br>
+  `}
+  <b>POSSIBLE CAUSE OF TERMINATION:</b><br>
+  - ${causes[0]}<br>
+  - ${causes[1]}<br>
+  - ${causes[2]}
+  `;
+}
+</script>
+
+</body>
+</html>
